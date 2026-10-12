@@ -250,11 +250,11 @@ const JobGrid = () => {
     }
   };
 
-  const onJobRun = async (jobId) => {
+  const onJobRun = async (jobId, multiPage = false) => {
     try {
-      const response = await xhrPost(`/api/jobs/${jobId}/run`);
+      const response = await xhrPost(`/api/jobs/${jobId}/run`, multiPage ? { multiPage: true } : {});
       if (response.status === 202) {
-        Toast.success(t('jobs.toastRunStarted'));
+        Toast.success(multiPage ? t('jobs.toastMultiPageStarted') : t('jobs.toastRunStarted'));
       } else {
         Toast.info(t('jobs.toastRunRequested'));
       }
@@ -431,6 +431,7 @@ const JobGrid = () => {
                   job={job}
                   density="card"
                   onRun={onJobRun}
+                  onMultiPageRun={(id) => onJobRun(id, true)}
                   onEdit={(id) => navigate(`/jobs/edit/${id}`)}
                   onClone={(id) => navigate('/jobs/new', { state: { cloneFrom: id } })}
                   onDeleteListings={onListingRemoval}
@@ -444,6 +445,7 @@ const JobGrid = () => {
         <JobsTable
           jobs={jobsData?.result || []}
           onRun={onJobRun}
+          onMultiPageRun={(id) => onJobRun(id, true)}
           onEdit={(id) => navigate(`/jobs/edit/${id}`)}
           onClone={(id) => navigate('/jobs/new', { state: { cloneFrom: id } })}
           onDeleteListings={onListingRemoval}

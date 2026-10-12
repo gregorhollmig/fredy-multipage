@@ -12,9 +12,9 @@ import './JobsTable.less';
 import { useTranslation } from '../../services/i18n/i18n.jsx';
 
 /**
- * @param {{ jobs: object[], onRun: Function, onEdit: Function, onClone: Function, onDeleteListings: Function, onDeleteJob: Function, onStatusChange: Function }} props
+ * @param {{ jobs: object[], onRun: Function, onMultiPageRun: Function, onEdit: Function, onClone: Function, onDeleteListings: Function, onDeleteJob: Function, onStatusChange: Function }} props
  */
-const JobsTable = ({ jobs, onRun, onEdit, onClone, onDeleteListings, onDeleteJob, onStatusChange }) => {
+const JobsTable = ({ jobs, onRun, onMultiPageRun, onEdit, onClone, onDeleteListings, onDeleteJob, onStatusChange }) => {
   const t = useTranslation();
   return (
     <div className="jobsTable">
@@ -87,6 +87,7 @@ const JobsTable = ({ jobs, onRun, onEdit, onClone, onDeleteListings, onDeleteJob
             job={job}
             density="row"
             onRun={onRun}
+            onMultiPageRun={onMultiPageRun}
             onEdit={onEdit}
             onClone={onClone}
             onDeleteListings={onDeleteListings}

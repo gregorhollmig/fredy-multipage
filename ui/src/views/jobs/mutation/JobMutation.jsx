@@ -116,6 +116,9 @@ export default function JobMutator() {
   const [specFilter, setSpecFilter] = useState(defaultSpecFilter);
   const [commuteFilter, setCommuteFilter] = useState(defaultCommuteFilter);
   const [dealType, setDealType] = useState(defaultDealType);
+  // A one-time gesture, not a property of the job: when set, saving the form also kicks off a single
+  // multi-page scan. It is never sent as a job field and never persisted.
+  const [multiPageAfterSave, setMultiPageAfterSave] = useState(false);
   /** Whether the value in the deal type field was guessed rather than chosen. */
   const [dealTypeWasInferred, setDealTypeWasInferred] = useState(false);
 
@@ -377,6 +380,8 @@ export default function JobMutator() {
         dealType,
         enabled,
         jobId: jobToBeEdit?.id || null,
+        // A one-time flag the backend reads to trigger the deep scan after it has stored the job.
+        multiPageAfterSave,
       });
       await actions.jobsData.getJobs();
       // Only once the save actually landed. Clearing before would throw the draft away on a
@@ -806,7 +811,18 @@ export default function JobMutator() {
                 aria-label={t('jobs.mutation.labelRunning')}
               />
             </AdminField>
+
+            {/* Sits with the "runs at all" switch because it is the same question asked once more:
+                what happens with this job. Only this one is a single act rather than a setting. */}
+            <AdminField label={t('jobs.mutation.multiPageAfterSave')}>
+              <Switch
+                onChange={(checked) => setMultiPageAfterSave(checked)}
+                checked={multiPageAfterSave}
+                aria-label={t('jobs.mutation.multiPageAfterSave')}
+              />
+            </AdminField>
           </div>
+          {multiPageAfterSave && <p className="jobMutation__rowNote">{t('jobs.mutation.multiPageAfterSaveHelp')}</p>}
         </SegmentPart>
 
         {/* The same sticky bar the settings and administration pages use, and it appears on the

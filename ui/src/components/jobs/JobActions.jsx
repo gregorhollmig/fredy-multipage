@@ -4,7 +4,15 @@
  */
 
 import { Button, Dropdown, Tooltip } from '@douyinfe/semi-ui-19';
-import { IconCopy, IconDelete, IconDescend2, IconEdit, IconMore, IconPlayCircle } from '@douyinfe/semi-icons';
+import {
+  IconCopy,
+  IconDelete,
+  IconDescend2,
+  IconEdit,
+  IconLayers,
+  IconMore,
+  IconPlayCircle,
+} from '@douyinfe/semi-icons';
 
 import './JobActions.less';
 import { useTranslation } from '../../services/i18n/i18n.jsx';
@@ -20,13 +28,14 @@ import { useTranslation } from '../../services/i18n/i18n.jsx';
  * @param {Object} props.job
  * @param {'card'|'row'} props.density Which actions stay visible; the rest move into the menu.
  * @param {(id: string) => void} props.onRun
+ * @param {(id: string) => void} props.onMultiPageRun One-time deep scan: every result page, stored silently.
  * @param {(id: string) => void} props.onEdit
  * @param {(id: string) => void} props.onClone
  * @param {(id: string) => void} props.onDeleteListings
  * @param {(id: string) => void} props.onDeleteJob
  * @returns {React.ReactElement}
  */
-const JobActions = ({ job, density, onRun, onEdit, onClone, onDeleteListings, onDeleteJob }) => {
+const JobActions = ({ job, density, onRun, onMultiPageRun, onEdit, onClone, onDeleteListings, onDeleteJob }) => {
   const t = useTranslation();
 
   /*
@@ -40,6 +49,16 @@ const JobActions = ({ job, density, onRun, onEdit, onClone, onDeleteListings, on
 
   const overflow = (
     <Dropdown.Menu className="jobActions__menu">
+      {/* The one-time deep scan. Kept out of the visible row on purpose: it is a deliberate,
+          occasional gesture, not something to fire at every job in passing. */}
+      <Dropdown.Item
+        icon={<IconLayers />}
+        disabled={job.isOnlyShared || job.running}
+        onClick={() => onMultiPageRun(job.id)}
+      >
+        {t('jobs.popoverMultiPage')}
+      </Dropdown.Item>
+      <Dropdown.Divider />
       {cloneIsHidden && (
         <>
           <Dropdown.Item icon={<IconCopy />} disabled={job.isOnlyShared} onClick={() => onClone(job.id)}>
