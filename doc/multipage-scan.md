@@ -12,24 +12,44 @@ exactly as fast and as cheap as before.
 
 Two places, both one-time:
 
-1. **Jobs page → the `⋯` menu of a job → "Multi-page scan (one-time)".** Walks every page for that
-   job's providers and imports what is missing.
-2. **Job create/edit form → "Multi-page scan after saving".** Saving the job also kicks off a single
-   scan. The switch is *not* stored on the job - it is a gesture attached to that one save.
+1. **Jobs page → the `⋯` menu of a job → "Multi-page scan (one-time)."** Walks every page for that
+   job's providers and imports what is missing. Quiet: it does **not** notify.
+2. **Jobs page → the `⋯` menu of a job → "Multi-page backfill (notify)."** The same deep walk, but it
+   **sends the fetched backlog to the job's notification channels** (see below).
+3. **Job create/edit form → "Multi-page scan after saving".** Saving the job also kicks off a single
+   quiet scan. The switch is *not* stored on the job - it is a gesture attached to that one save.
 
-Both start a run immediately and report progress through the usual job status (the card's
-`RUNNING` chip and the "Job finished" toast).
+All start a run immediately and report progress through the usual job status (the card's `RUNNING`
+chip and the "Job finished" toast).
+
+## Backfill vs. quiet import
+
+The **quiet scan** stores what it finds and stops. This is the safe default for a first deep scan,
+because a search with hundreds of results would otherwise notify on all of them at once.
+
+The **backfill (notify)** is the one that hands the backlog to your channels. It notifies *what the
+search returned* - after the blacklist and spec filters, but **before** the similarity and area
+filters. That last part is the point: the area filter soft-deletes everything outside the job's map
+area, and notifying only survivors would drop exactly the listings a backfill exists to deliver.
+
+Consequences worth knowing:
+
+- The backfill sends listings **outside the job's map area** to the channels too (they are still
+  hidden in Fredy's own listing list - the filters are unchanged).
+- It skips travel-time lookups, so a few hundred listings do not each cost a routing request.
+- It does not send listings the blacklist or the spec filter (price/rooms/size) reject.
+- Run it once. Repeats re-send the same backlog; a receiver that de-duplicates (like the AI filter in
+  the companion project) will skip them, but other channels will not.
 
 ## What it does (and does not do)
 
 - It walks **all** result pages, not just the first, for the providers that can be paged.
 - It **stores** everything it finds, so older listings appear in the listings view and are marked as
   known - the next normal run will not re-notify them.
-- It is **silent**: a multi-page import does **not** send notifications, and skips the travel-time
-  lookups. A first deep scan finds every older result at once; notifying on all of them would flood
-  the channels and burn a routing lookup per listing. The trade-off is that an AI/notification
-  pipeline downstream of Fredy's webhook will not see the backfilled listings - only genuinely new
-  ones from then on.
+- **Quiet scan:** sends no notifications and skips travel-time lookups. A first deep scan finds every
+  older result at once, so notifying on all of them at once would flood the channels.
+- **Backfill (notify):** sends the fetched backlog to the job's channels (see the section above),
+  skipping the travel-time lookups as well.
 - A portal with no page parameter (its result list is a "load more" widget rather than numbered
   pages) degrades to a single page; nothing is guessed.
 

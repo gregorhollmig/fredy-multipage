@@ -12,6 +12,7 @@ import {
   IconLayers,
   IconMore,
   IconPlayCircle,
+  IconSend,
 } from '@douyinfe/semi-icons';
 
 import './JobActions.less';
@@ -29,13 +30,24 @@ import { useTranslation } from '../../services/i18n/i18n.jsx';
  * @param {'card'|'row'} props.density Which actions stay visible; the rest move into the menu.
  * @param {(id: string) => void} props.onRun
  * @param {(id: string) => void} props.onMultiPageRun One-time deep scan: every result page, stored silently.
+ * @param {(id: string) => void} props.onMultiPageBackfill One-time backfill: every result page, pushed to the channels.
  * @param {(id: string) => void} props.onEdit
  * @param {(id: string) => void} props.onClone
  * @param {(id: string) => void} props.onDeleteListings
  * @param {(id: string) => void} props.onDeleteJob
  * @returns {React.ReactElement}
  */
-const JobActions = ({ job, density, onRun, onMultiPageRun, onEdit, onClone, onDeleteListings, onDeleteJob }) => {
+const JobActions = ({
+  job,
+  density,
+  onRun,
+  onMultiPageRun,
+  onMultiPageBackfill,
+  onEdit,
+  onClone,
+  onDeleteListings,
+  onDeleteJob,
+}) => {
   const t = useTranslation();
 
   /*
@@ -49,14 +61,21 @@ const JobActions = ({ job, density, onRun, onMultiPageRun, onEdit, onClone, onDe
 
   const overflow = (
     <Dropdown.Menu className="jobActions__menu">
-      {/* The one-time deep scan. Kept out of the visible row on purpose: it is a deliberate,
-          occasional gesture, not something to fire at every job in passing. */}
+      {/* Two one-time gestures, both kept out of the visible row: a deep scan that imports quietly,
+          and a backfill that pushes what it fetched to the notification channels. */}
       <Dropdown.Item
         icon={<IconLayers />}
         disabled={job.isOnlyShared || job.running}
         onClick={() => onMultiPageRun(job.id)}
       >
         {t('jobs.popoverMultiPage')}
+      </Dropdown.Item>
+      <Dropdown.Item
+        icon={<IconSend />}
+        disabled={job.isOnlyShared || job.running}
+        onClick={() => onMultiPageBackfill(job.id)}
+      >
+        {t('jobs.popoverMultiPageBackfill')}
       </Dropdown.Item>
       <Dropdown.Divider />
       {cloneIsHidden && (

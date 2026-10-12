@@ -250,11 +250,21 @@ const JobGrid = () => {
     }
   };
 
-  const onJobRun = async (jobId, multiPage = false) => {
+  const onJobRun = async (jobId, options = {}) => {
+    const { multiPage = false, notifyFetched = false } = options;
+    const body = {};
+    if (multiPage) body.multiPage = true;
+    if (notifyFetched) body.notifyFetched = true;
     try {
-      const response = await xhrPost(`/api/jobs/${jobId}/run`, multiPage ? { multiPage: true } : {});
+      const response = await xhrPost(`/api/jobs/${jobId}/run`, body);
       if (response.status === 202) {
-        Toast.success(multiPage ? t('jobs.toastMultiPageStarted') : t('jobs.toastRunStarted'));
+        Toast.success(
+          notifyFetched
+            ? t('jobs.toastBackfillStarted')
+            : multiPage
+              ? t('jobs.toastMultiPageStarted')
+              : t('jobs.toastRunStarted'),
+        );
       } else {
         Toast.info(t('jobs.toastRunRequested'));
       }
@@ -431,7 +441,8 @@ const JobGrid = () => {
                   job={job}
                   density="card"
                   onRun={onJobRun}
-                  onMultiPageRun={(id) => onJobRun(id, true)}
+                  onMultiPageRun={(id) => onJobRun(id, { multiPage: true })}
+                  onMultiPageBackfill={(id) => onJobRun(id, { multiPage: true, notifyFetched: true })}
                   onEdit={(id) => navigate(`/jobs/edit/${id}`)}
                   onClone={(id) => navigate('/jobs/new', { state: { cloneFrom: id } })}
                   onDeleteListings={onListingRemoval}
@@ -445,7 +456,8 @@ const JobGrid = () => {
         <JobsTable
           jobs={jobsData?.result || []}
           onRun={onJobRun}
-          onMultiPageRun={(id) => onJobRun(id, true)}
+          onMultiPageRun={(id) => onJobRun(id, { multiPage: true })}
+          onMultiPageBackfill={(id) => onJobRun(id, { multiPage: true, notifyFetched: true })}
           onEdit={(id) => navigate(`/jobs/edit/${id}`)}
           onClone={(id) => navigate('/jobs/new', { state: { cloneFrom: id } })}
           onDeleteListings={onListingRemoval}

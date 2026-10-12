@@ -29,20 +29,27 @@ const jobsTable = read('ui/src/components/table/JobsTable.jsx');
 const jobMutation = read('ui/src/views/jobs/mutation/JobMutation.jsx');
 
 describe('the job page can trigger a one-time multi-page scan', () => {
-  it('offers the action in the shared actions menu', () => {
+  it('offers both one-time actions in the shared actions menu', () => {
     expect(jobActions).toMatch(/onMultiPageRun/);
     expect(jobActions).toMatch(/t\('jobs\.popoverMultiPage'\)/);
+    expect(jobActions).toMatch(/onMultiPageBackfill/);
+    expect(jobActions).toMatch(/t\('jobs\.popoverMultiPageBackfill'\)/);
   });
 
-  it('posts the flag for both views', () => {
-    expect(jobGrid).toMatch(/multiPage \? \{ multiPage: true \} : \{\}/);
-    expect(jobGrid).toMatch(/onMultiPageRun=\{\(id\) => onJobRun\(id, true\)\}/);
-    expect(jobsTable).toMatch(/onMultiPageRun/);
+  it('posts the flags for both views', () => {
+    expect(jobGrid).toMatch(/if \(multiPage\) body\.multiPage = true/);
+    expect(jobGrid).toMatch(/if \(notifyFetched\) body\.notifyFetched = true/);
+    expect(jobGrid).toMatch(/onMultiPageRun=\{\(id\) => onJobRun\(id, \{ multiPage: true \}\)\}/);
+    expect(jobGrid).toMatch(
+      /onMultiPageBackfill=\{\(id\) => onJobRun\(id, \{ multiPage: true, notifyFetched: true \}\)\}/,
+    );
+    expect(jobsTable).toMatch(/onMultiPageBackfill/);
   });
 
-  it('reads the flag on the backend and emits it as a run', () => {
+  it('reads the flags on the backend and emits them as a run', () => {
     expect(jobRouter).toMatch(/request\.body\?\.multiPage === true/);
-    expect(jobRouter).toMatch(/bus\.emit\('jobs:runOne', \{ jobId, multiPage \}\)/);
+    expect(jobRouter).toMatch(/request\.body\?\.notifyFetched === true/);
+    expect(jobRouter).toMatch(/bus\.emit\('jobs:runOne', \{ jobId, multiPage, notifyFetched \}\)/);
   });
 });
 
@@ -64,5 +71,17 @@ describe('a multi-page run walks pages and stores silently', () => {
     expect(pipeline).toMatch(/collectAllPages\(/);
     expect(pipeline).toMatch(/_finalize/);
     expect(pipeline).toMatch(/if \(this\._silent\)/);
+  });
+});
+
+describe('a multi-page backfill notifies the fetched backlog', () => {
+  it('routes the notify flag into a notifying run', () => {
+    expect(jobExecutionService).toMatch(/notifyFetched \? \{ notify: 'fetched' \} : \{ silent: true \}/);
+  });
+
+  it('notifies the post-spec snapshot rather than the area-filtered survivors', () => {
+    expect(pipeline).toMatch(/_captureForNotify/);
+    expect(pipeline).toMatch(/_notifyMode === 'fetched'/);
+    expect(pipeline).toMatch(/this\._fetchedForNotify \?\? listings/);
   });
 });

@@ -44,11 +44,12 @@ const cache = { checkAndAddEntry: () => false };
  * @param {Object} config
  * @param {Object} [options]
  * @param {string} [providerId]
+ * @param {Object} [similarityCache]
  * @returns {Promise<Object>} The provider config, for its recorded page calls.
  */
-async function run(config, options = {}, providerId = 'immoswp') {
+async function run(config, options = {}, providerId = 'immoswp', similarityCache = cache) {
   const Fredy = await mockFredy();
-  const fredy = new Fredy(config, job, providerId, cache, undefined, options);
+  const fredy = new Fredy(config, job, providerId, similarityCache, undefined, options);
   try {
     await fredy.execute();
   } catch {
@@ -97,5 +98,23 @@ describe('a multi-page run', () => {
     await run(config, { pagination: { maxPages: 5, delayMs: 0 } }, 'ohneMakler');
     // The base url is fetched as-is; no page parameter is invented for a portal we cannot page.
     expect(config.calls).toEqual([1]);
+  });
+});
+
+describe('a multi-page backfill (notify: fetched)', () => {
+  // Marks one listing as a duplicate, so the similarity filter drops it from the survivors - the
+  // same place the area filter would drop everything outside the job's map.
+  const dropsSecond = { checkAndAddEntry: ({ title }) => title === 'Listing 2' };
+
+  it('notifies the whole fetched backlog, including what the filters drop', async () => {
+    const config = configFor([[listing(1), listing(2), listing(3)], []]);
+    await run(config, { pagination: { maxPages: 5, delayMs: 0 }, notify: 'fetched' }, 'immoswp', dropsSecond);
+    expect(mockNotification.get().payload).toHaveLength(3);
+  });
+
+  it('a plain (filtered) notification only carries the survivors', async () => {
+    const config = configFor([[listing(1), listing(2), listing(3)], []]);
+    await run(config, { pagination: { maxPages: 5, delayMs: 0 } }, 'immoswp', dropsSecond);
+    expect(mockNotification.get().payload).toHaveLength(2);
   });
 });
