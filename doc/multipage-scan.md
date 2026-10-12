@@ -38,19 +38,21 @@ Both start a run immediately and report progress through the usual job status (t
 The page parameter is the portal's own, so each paged portal is named explicitly in
 `lib/services/pagination/paginationService.js` (`MULTIPAGE_PROVIDERS`):
 
-| Provider | Page parameter | Notes |
+| Provider | Page mechanism | Notes |
 |---|---|---|
-| `immoscout` | `pagenumber` | mobile API; asks for `pagesize=100` |
-| `immowelt` | `page` | search BFF, 100 per page |
-| `engelVoelkers` | `page` | |
-| `kleinanzeigen` | `page` | |
-| `sparkasse` | `page` | |
-| `immoswp` | `page` | |
-| `regionalimmobilien24` | `page` | |
-| `ohneMakler` | - | "load more" widget; single page |
+| `immoscout` | `pagenumber` (query) | mobile API; asks for `pagesize=100` |
+| `immowelt` | `page` (query) | search BFF, 100 per page; **3 s pause** between pages (its wall answers 403 on a burst) |
+| `engelVoelkers` | `page` (query) | |
+| `kleinanzeigen` | `/seite:N/` (path) | handled by `kleinanzeigenPageUrl`; a `?page=` parameter is ignored by the portal |
+| `sparkasse` | `page` (query) | |
+| `immoswp` | `page` (query) | |
+| `regionalimmobilien24` | `page` (query) | |
+| `ohneMakler`, `mcMakler` | - | "load more" widgets; single page |
 
-Adding a provider is one line in that map. A wrong parameter is not dangerous: the walk stops as
-soon as a page contributes nothing new, so a portal that ignores `page` simply stops after page one.
+Adding a provider is one line in that map. A portal that pages in the path rather than the query
+string sets `pageUrl` (a function returning page N's URL) instead of `param`; a portal whose bot wall
+reacts to request rate sets `delayMs`. A wrong parameter is not dangerous: the walk stops as soon as
+a page contributes nothing new, so a portal that ignores it simply stops after page one.
 
 ## Limits
 

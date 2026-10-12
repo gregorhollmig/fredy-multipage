@@ -25,11 +25,16 @@ describe('provider descriptors', () => {
     expect(descriptorFor('ohneMakler')).toBeNull();
   });
 
-  it('uses a page parameter for every portal it claims to page', () => {
+  it('names a way to address the next page for every portal it claims to page', () => {
     for (const [id, descriptor] of Object.entries(MULTIPAGE_PROVIDERS)) {
-      expect(descriptor.param, id).toBeTypeOf('string');
-      expect(descriptor.param.length, id).toBeGreaterThan(0);
+      const hasParam = typeof descriptor.param === 'string' && descriptor.param.length > 0;
+      const hasBuilder = typeof descriptor.pageUrl === 'function';
+      expect(hasParam || hasBuilder, id).toBe(true);
     }
+  });
+
+  it('slows immowelt down, whose search answers 403 when hit in a burst', () => {
+    expect(descriptorFor('immowelt').delayMs).toBeGreaterThanOrEqual(1000);
   });
 });
 
@@ -52,6 +57,25 @@ describe('buildPageUrl', () => {
     expect(parsed.searchParams.get('pagenumber')).toBe('2');
     expect(parsed.searchParams.get('pagesize')).toBe('100');
   });
+
+  it('pages kleinanzeigen in the path, keeping the job filters intact', () => {
+    const url =
+      'https://www.kleinanzeigen.de/s-wohnung-mieten/karlsruhe/preis::1500/c203l9186r30+wohnung_mieten.qm_d:80%2C+wohnung_mieten.zimmer_d:3%2C';
+    const descriptor = descriptorFor('kleinanzeigen');
+
+    // Page one is the URL untouched: the portal's own first page carries no `/seite:1/`.
+    expect(buildPageUrl(url, 1, descriptor)).toBe(url);
+
+    // Page N inserts the segment right after the category, before the location and the filters.
+    expect(buildPageUrl(url, 2, descriptor)).toBe(
+      'https://www.kleinanzeigen.de/s-wohnung-mieten/seite:2/karlsruhe/preis::1500/c203l9186r30+wohnung_mieten.qm_d:80%2C+wohnung_mieten.zimmer_d:3%2C',
+    );
+  });
+
+  it('leaves a URL with no path alone rather than inventing a segment', () => {
+    const descriptor = descriptorFor('kleinanzeigen');
+    expect(buildPageUrl('https://www.kleinanzeigen.de/', 2, descriptor)).toBe('https://www.kleinanzeigen.de/');
+  });
 });
 
 describe('collectAllPages', () => {
@@ -72,6 +96,47 @@ describe('collectAllPages', () => {
     });
     expect(seen).toEqual(['1', '2', '3']);
     expect(result.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('uses a provider page builder when it has one (kleinanzeigen)', async () => {
+    const kl = descriptorFor('kleinanzeigen');
+    const seen = [];
+    const result = await collectAllPages({
+      url: 'https://www.kleinanzeigen.de/s-wohnung-mieten/karlsruhe/c203',
+      descriptor: kl,
+      delayMs: 0,
+      fetchPage: async (url) => {
+        seen.push(url);
+        return url.includes('/seite:2/') ? [] : [item('a')];
+      },
+    });
+    expect(seen[0]).toBe('https://www.kleinanzeigen.de/s-wohnung-mieten/karlsruhe/c203');
+    expect(seen[1]).toBe('https://www.kleinanzeigen.de/s-wohnung-mieten/seite:2/karlsruhe/c203');
+    expect(result.map((r) => r.id)).toEqual(['a']);
+  });
+
+  it('lets the descriptor override the pause between pages', async () => {
+    vi.useFakeTimers();
+    try {
+      const times = [];
+      const pending = collectAllPages({
+        url: 'http://x/search',
+        descriptor: { param: 'page', delayMs: 5000 },
+        maxPages: 2,
+        delayMs: 10,
+        fetchPage: async (url) => {
+          times.push(Date.now());
+          const page = Number(new URL(url).searchParams.get('page'));
+          return [item('p' + page)];
+        },
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      await pending;
+      expect(times).toHaveLength(2);
+      expect(times[1] - times[0]).toBeGreaterThanOrEqual(5000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('stops when a page repeats itself, so a wrong parameter is not an endless loop', async () => {
